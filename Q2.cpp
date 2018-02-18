@@ -3,7 +3,7 @@
 #include <string>
 
 enum class Symbol{
-    eof, plus, minus, times, division, lParen, rParen, integer, other
+    eof, plus, minus, times, division, lParen, rParen, integer, boolType, logicAnd, logicOr, negate, equality, inequality, other
 };
 //struct used to hold synthesized attributes
 struct AttrSet{
@@ -13,6 +13,8 @@ struct AttrSet{
 //declaration of recursive functions
 void factor(AttrSet &v0);
 void term (AttrSet &v0);
+void booleanExpression(AttrSet &v0);
+void booleanConstant(AttrSet &v0);
 
 
 
@@ -51,7 +53,7 @@ void parseSymbol(){
         case '(':
             currentSym = Symbol::lParen; nextChar(); break;
         case ')':
-            currentSym = Symbol::rParen; nextChar(); break;
+            currentSym = Symbol::rParen; nextChar();  break;
         case '0': case '1': case '2': case '3':
         case '4': case '5': case '6': case '7':
         case '8': case '9':
@@ -64,6 +66,26 @@ void parseSymbol(){
                 nextChar();
             }
             break;
+        case 't': case 'T':
+            currentSym = Symbol::boolType;
+            symVal.num = 1;
+            nextChar();
+            break;
+        case 'f': case 'F':
+            currentSym = Symbol::boolType;
+            symVal.num = 0;
+            nextChar();
+            break;
+        case '&':
+            currentSym = Symbol::logicAnd; nextChar(); break;
+        case '|':
+            currentSym = Symbol::logicOr; nextChar(); break;
+        case '~':
+            currentSym = Symbol::negate; nextChar(); break;
+        case '=':
+            currentSym = Symbol::equality; nextChar(); break;
+        case '#':
+            currentSym = Symbol::inequality; nextChar(); break;
         default:
             currentSym = Symbol::other;
     }
@@ -117,6 +139,7 @@ void term(AttrSet &v0){
 void factor(AttrSet &v0){
     if(currentSym == Symbol::integer){
         v0.num = symVal.num;
+        parseSymbol();
     }
     else if(currentSym == Symbol::lParen){
         parseSymbol();
@@ -126,6 +149,67 @@ void factor(AttrSet &v0){
             std::cout << "Error. Brackets not closed properly. ";
             errorFlag = 1;
         }
+        parseSymbol();
+    }
+    else if(currentSym == Symbol::boolType || currentSym == Symbol::negate){
+        booleanExpression(v0);
+        //note that parseSymbol is not called here, it is instead called in deeper nested functions for booleans
+    }
+}
+
+
+void booleanExpression(AttrSet &v0){
+    AttrSet v1{ 0 };
+    AttrSet v2{ 0 };
+
+    if(currentSym == Symbol::negate){
+        parseSymbol();
+        expression(v1);
+        //negate the result of expanding on the boolean expression
+        if(v1.num == 0){ v1.num = 1; }
+        else if(v1.num == 1) { v1.num = 0; }
+        else{
+            errorFlag = 1;
+            std::cout << "Error. Cannot Use Negation on Any value that is not True or False. ";
+        }
+    }
+    else{
+        if(currentSym == Symbol::boolType) booleanConstant(v1);
+        else expression(v1);
+
+        while(currentSym == Symbol::logicAnd || currentSym == Symbol:: logicOr){
+            Symbol op = currentSym;
+            parseSymbol();
+            expression(v2);
+
+            if((v1.num == 0 || v1.num == 1) && (v2.num == 0 || v2.num == 1)){
+                if(op == Symbol:: logicAnd){
+                    if(v1.num == 1 && v2.num == 1) v1.num = 1;
+                    else v1.num = 0;
+                }
+                else{
+                    if(v1.num == 1 || v2.num == 1) v1.num = 1;
+                    else v1.num = 0;
+                }
+            }
+            else{
+                errorFlag = 1;
+                std::cout << "Error. Cannot compare integers with &, or |. ";
+            }
+
+        }
+    }
+    v0.num = v1.num;
+
+}
+
+void booleanConstant(AttrSet &v0){
+    if(currentSym == Symbol::boolType){
+        v0.num = symVal.num;
+    }
+    else{
+        errorFlag = 1;
+        std::cout << "Error. Integer has been entered where a Boolean should exist instead. ";
     }
     parseSymbol();
 }
@@ -155,6 +239,7 @@ int main(){
             }
         }
         else{
+            std::cout << currentChar << " " << nextIndex << std::endl;
             std::cout << "failure. Invalid Input" << std::endl;
         }
     }
