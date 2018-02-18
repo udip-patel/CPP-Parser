@@ -10,6 +10,10 @@ struct AttrSet{
     int num;
 };
 
+//declaration of recursive functions
+void factor(AttrSet &v0);
+void term (AttrSet &v0);
+
 
 
 int nextIndex;//the pointer to the next element of the input sentence
@@ -17,10 +21,13 @@ char currentChar;//the current character as it is read from the input
 Symbol currentSym;//the current symbol to be parsed
 AttrSet symVal;//value of the current symbol
 
+int errorFlag = 0;//whether or not an error was encountered 0/1 (T/F)
+
 std::string input;
 
 
 void nextChar(){
+    //since next index represents the next index to traverse into
     if(nextIndex < input.length()) {
         currentChar = input.at(nextIndex);
         nextIndex++;
@@ -64,6 +71,64 @@ void parseSymbol(){
 
 
 
+//Recursive descenting functions
+void expression(AttrSet &v0){
+    AttrSet v1{ 0 };
+    AttrSet v2{ 0 };
+    term(v1);
+
+    while((currentSym == Symbol::plus) || (currentSym == Symbol::minus)){
+        Symbol op = currentSym;//store the symbol for reference
+        //continue parsing
+        parseSymbol();
+        term(v2);
+        //perform the operation based on the symbol
+        if(op == Symbol::plus) v1.num += v2.num;
+        else v1.num -= v2.num;
+    }
+    //assign result to parent
+    v0.num = v1.num;
+}
+
+
+void term(AttrSet &v0){
+    AttrSet v1{ 0 };
+    AttrSet v2{ 0 };
+    factor(v1);
+
+    while((currentSym == Symbol::times) || (currentSym == Symbol::division)){
+        Symbol op = currentSym;
+        parseSymbol();
+        factor(v2);
+
+        if(op == Symbol::times) v1.num *= v2.num;
+        else {
+            if(v2.num != 0) v1.num /= v2.num;
+            else{
+                errorFlag = 1;
+                std::cout << "Invalid Input, Please enter the denominator. ";
+            }
+        }
+    }
+    v0.num = v1.num;
+}
+
+
+void factor(AttrSet &v0){
+    if(currentSym == Symbol::integer){
+        v0.num = symVal.num;
+    }
+    else if(currentSym == Symbol::lParen){
+        parseSymbol();
+        expression(v0);
+
+        if(currentSym != Symbol::rParen){
+            std::cout << "Error. Brackets not closed properly. ";
+            errorFlag = 1;
+        }
+    }
+    parseSymbol();
+}
 
 
 int main(){
@@ -73,15 +138,24 @@ int main(){
         std::cin >> input;
         nextIndex = 0;
 
+        AttrSet result{ 0 };
+        errorFlag = 0;//revert errorFlag to none
+
         nextChar();
         parseSymbol();
         //call the actual descenting functions
+        expression(result);
 
         if(currentSym == Symbol::eof){
-            std::cout << "successful parse";
+            if(errorFlag == 0){
+                std::cout << "successful parse. val: " << result.num << std::endl;
+            }
+            else{
+                std::cout << "Last value tracked: " << result.num << std::endl;
+            }
         }
         else{
-            std::cout << "fail";
+            std::cout << "failure. Invalid Input" << std::endl;
         }
     }
 
