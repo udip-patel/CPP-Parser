@@ -13,8 +13,7 @@ struct AttrSet{
 //declaration of recursive functions
 void factor(AttrSet &v0);
 void term (AttrSet &v0);
-void booleanExpression(AttrSet &v0);
-void booleanConstant(AttrSet &v0);
+void expression(AttrSet &v0);
 
 
 
@@ -94,6 +93,52 @@ void parseSymbol(){
 
 
 //Recursive descenting functions
+void booleanExpression(AttrSet &v0){
+    AttrSet v1{ 0 };
+    AttrSet v2{ 0 };
+
+    if(currentSym == Symbol::negate){
+        parseSymbol();
+        booleanExpression(v1);
+        //negate the result of expanding on the boolean expression
+        if(v1.num == 0){ v1.num = 1; }
+        else if(v1.num == 1) { v1.num = 0; }
+        else{
+            errorFlag = 1;
+            std::cout << "Error. Cannot Use Negation on Any value that is not True or False. ";
+        }
+    }
+    else{
+        expression(v1);
+
+        while(currentSym == Symbol::logicAnd || currentSym == Symbol:: logicOr){
+            Symbol op = currentSym;
+            parseSymbol();
+            expression(v2);
+
+            if((v1.num == 0 || v1.num == 1) && (v2.num == 0 || v2.num == 1)){
+                if(op == Symbol:: logicAnd){
+                    if(v1.num == 1 && v2.num == 1) v1.num = 1;
+                    else v1.num = 0;
+                }
+                else{
+                    if(v1.num == 1 || v2.num == 1) v1.num = 1;
+                    else v1.num = 0;
+                }
+            }
+            else{
+                errorFlag = 1;
+                std::cout << "Error. Cannot compare integers with &, or |. ";
+            }
+
+        }
+    }
+    v0.num = v1.num;
+
+}
+
+
+
 void expression(AttrSet &v0){
     AttrSet v1{ 0 };
     AttrSet v2{ 0 };
@@ -139,80 +184,26 @@ void term(AttrSet &v0){
 void factor(AttrSet &v0){
     if(currentSym == Symbol::integer){
         v0.num = symVal.num;
-        parseSymbol();
     }
-    else if(currentSym == Symbol::lParen){
-        parseSymbol();
-        expression(v0);
 
-        if(currentSym != Symbol::rParen){
-            std::cout << "Error. Brackets not closed properly. ";
-            errorFlag = 1;
-        }
-        parseSymbol();
-    }
-    else if(currentSym == Symbol::boolType || currentSym == Symbol::negate){
-        booleanExpression(v0);
-        //note that parseSymbol is not called here, it is instead called in deeper nested functions for booleans
-    }
-}
-
-
-void booleanExpression(AttrSet &v0){
-    AttrSet v1{ 0 };
-    AttrSet v2{ 0 };
-
-    if(currentSym == Symbol::negate){
-        parseSymbol();
-        expression(v1);
-        //negate the result of expanding on the boolean expression
-        if(v1.num == 0){ v1.num = 1; }
-        else if(v1.num == 1) { v1.num = 0; }
-        else{
-            errorFlag = 1;
-            std::cout << "Error. Cannot Use Negation on Any value that is not True or False. ";
-        }
-    }
-    else{
-        if(currentSym == Symbol::boolType) booleanConstant(v1);
-        else expression(v1);
-
-        while(currentSym == Symbol::logicAnd || currentSym == Symbol:: logicOr){
-            Symbol op = currentSym;
-            parseSymbol();
-            expression(v2);
-
-            if((v1.num == 0 || v1.num == 1) && (v2.num == 0 || v2.num == 1)){
-                if(op == Symbol:: logicAnd){
-                    if(v1.num == 1 && v2.num == 1) v1.num = 1;
-                    else v1.num = 0;
-                }
-                else{
-                    if(v1.num == 1 || v2.num == 1) v1.num = 1;
-                    else v1.num = 0;
-                }
-            }
-            else{
-                errorFlag = 1;
-                std::cout << "Error. Cannot compare integers with &, or |. ";
-            }
-
-        }
-    }
-    v0.num = v1.num;
-
-}
-
-void booleanConstant(AttrSet &v0){
     if(currentSym == Symbol::boolType){
         v0.num = symVal.num;
     }
-    else{
-        errorFlag = 1;
-        std::cout << "Error. Integer has been entered where a Boolean should exist instead. ";
+
+    else if(currentSym == Symbol::lParen){
+        parseSymbol();
+        booleanExpression(v0);
+
+        if(currentSym != Symbol::rParen){
+            std::cout << currentChar << " " << nextIndex << std::endl;
+            std::cout << "Error. Brackets not closed properly. ";
+            errorFlag = 1;
+        }
     }
     parseSymbol();
 }
+
+
 
 
 int main(){
@@ -228,7 +219,7 @@ int main(){
         nextChar();
         parseSymbol();
         //call the actual descenting functions
-        expression(result);
+        booleanExpression(result);
 
         if(currentSym == Symbol::eof){
             if(errorFlag == 0){
